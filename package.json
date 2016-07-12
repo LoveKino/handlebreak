@@ -1,0 +1,25 @@
+{
+  "name": "handlebreak",
+  "version": "0.0.1",
+  "description": "An approach to handle jobs which may be interrupted",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LoveKino/handlebreak.git"
+  },
+  "keywords": [
+    "break",
+    "continue",
+    "interrupt",
+    "refresh"
+  ],
+  "author": "ddchen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/LoveKino/handlebreak/issues"
+  },
+  "homepage": "https://github.com/LoveKino/handlebreak#readme"
+}
