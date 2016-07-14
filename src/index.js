@@ -29,12 +29,32 @@ let getFragmentIndex = (breakIndex, start) => {
 };
 
 module.exports = (memory, key, works, start = 0, end) => {
-    end = end || works.length - 1; //last one
     memory = memory || defMemory;
+    let getState = () => {
+        return memory.get(key).then((ret) => {
+            return ret || {
+                index: 0
+            };
+        });
+    };
+
+    let getIndex = () => {
+        return getState().then(ret => ret.index);
+    };
+
+    let setState = (index) => {
+        // save the work progress
+        return memory.set(key, {
+            index,
+            lastworkTime: new Date().getTime()
+        });
+    };
 
     let genBreakhandle = (deal) => {
         // get the index, find the break point
-        return Promise.resolve(memory.get(key)).then((index = 0) => {
+        return getState().then(({
+            index
+        }) => {
             let breakIndex = index;
 
             let breakHandle = () => {
@@ -44,7 +64,7 @@ module.exports = (memory, key, works, start = 0, end) => {
                 return Promise.resolve(ret).then((res) => {
                     index++;
                     // save the work progress
-                    memory.set(key, index);
+                    setState(index);
                     return {
                         res,
                         index,
@@ -60,6 +80,8 @@ module.exports = (memory, key, works, start = 0, end) => {
     };
 
     let handleBreakList = (deal, toNextMoment = id) => {
+        end = end || works.length - 1; //last one
+
         return genBreakhandle(deal).then(({
             breakIndex, breakHandle
         }) => {
@@ -77,16 +99,21 @@ module.exports = (memory, key, works, start = 0, end) => {
             }) => {
                 let frgIndex = getFragmentIndex(index, start);
                 if (frgIndex < fragment.length) {
-                    let time = toNextMoment(fragment[frgIndex]);
-                    return Promise.resolve(time).then(() => {
-                        return handleBreakList(deal, toNextMoment).then(({
-                            resList, breakIndex
-                        }) => {
-                            resList.unshift(res);
-                            return {
-                                resList,
-                                breakIndex
-                            };
+                    // get last work's finished lastworkTime
+                    return getState().then(({
+                        lastworkTime
+                    }) => {
+                        let wait = toNextMoment(fragment[frgIndex], index, works, lastworkTime);
+                        return Promise.resolve(wait).then(() => {
+                            return handleBreakList(deal, toNextMoment).then(({
+                                resList, breakIndex
+                            }) => {
+                                resList.unshift(res);
+                                return {
+                                    resList,
+                                    breakIndex
+                                };
+                            });
                         });
                     });
                 } else {
@@ -102,6 +129,8 @@ module.exports = (memory, key, works, start = 0, end) => {
 
     return {
         genBreakhandle,
-        handleBreakList
+        handleBreakList,
+        getState,
+        getIndex
     };
 };
