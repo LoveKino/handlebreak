@@ -19,17 +19,30 @@ let defMemory = {
     }
 };
 
-module.exports = (memory) => {
+/**
+ * fragment index:
+ *
+ * start -> start + 1 -> ...... -> start + fragment.length
+ */
+let getFragmentIndex = (breakIndex, start) => {
+    return breakIndex - start;
+};
+
+module.exports = (memory, works, start = 0, end) => {
+    end = end || works.length - 1; //last one
     memory = memory || defMemory;
 
-    let genBreakhandle = (key, works, deal) => {
+    let fragment = works.slice(start, end + 1);
+
+    let genBreakhandle = (key, deal) => {
         // get the index, find the break point
         return Promise.resolve(memory.get(key)).then((index = 0) => {
-            let startIndex = index;
+            let breakIndex = index;
 
-            let breakHandle = (extra) => {
-                let work = works[index];
-                let ret = deal(work, index, works, extra);
+            let breakHandle = () => {
+                let frgIndex = getFragmentIndex(index, start);
+                let work = fragment[frgIndex];
+                let ret = deal(work, frgIndex, fragment, index);
                 // handle the work
                 return Promise.resolve(ret).then((res) => {
                     index++;
@@ -38,50 +51,53 @@ module.exports = (memory) => {
                     return {
                         res,
                         index,
-                        startIndex
+                        breakIndex // record break point
                     };
                 });
             };
 
             return {
-                startIndex, breakHandle
+                breakIndex, breakHandle
             };
         });
     };
 
-    let handleBreakList = (actions, opts, toNextMoment = id) => {
-        let {
-            startIndex = 0, breakHandle
-        } = opts;
-
-        if (startIndex >= actions.length) return Promise.resolve({
-            resList: [],
-            startIndex
-        });
-
-        return breakHandle().then(({
-            index, res
+    let handleBreakList = (key, deal, toNextMoment = id) => {
+        return genBreakhandle(key, deal).then(({
+            breakIndex, breakHandle
         }) => {
-            if (index < actions.length) {
-                let time = toNextMoment(actions[index - 1], index - 1, actions);
-                return Promise.resolve(time).then(() => {
-                    return handleBreakList(actions, opts, toNextMoment).then(({
-                        resList, startIndex
-                    }) => {
-                        resList.unshift(res);
-                        return {
-                            resList,
-                            startIndex
-                        };
+            let frgIndex = getFragmentIndex(breakIndex, start);
+
+            if (frgIndex >= fragment.length) return Promise.resolve({
+                resList: [],
+                breakIndex
+            });
+
+            return breakHandle().then(({
+                index, res
+            }) => {
+                let frgIndex = getFragmentIndex(index, start);
+                if (frgIndex < fragment.length) {
+                    let time = toNextMoment(fragment[frgIndex - 1]);
+                    return Promise.resolve(time).then(() => {
+                        return handleBreakList(key, deal, toNextMoment).then(({
+                            resList, breakIndex
+                        }) => {
+                            resList.unshift(res);
+                            return {
+                                resList,
+                                breakIndex
+                            };
+                        });
                     });
-                });
-            } else {
-                // the last one
-                return {
-                    startIndex,
-                    resList: [res]
-                };
-            }
+                } else {
+                    // the last one
+                    return {
+                        breakIndex,
+                        resList: [res]
+                    };
+                }
+            });
         });
     };
 
