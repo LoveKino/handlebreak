@@ -28,21 +28,18 @@ let getFragmentIndex = (breakIndex, start) => {
     return breakIndex - start;
 };
 
-module.exports = (memory, works, start = 0, end) => {
+module.exports = (memory, key, works, start = 0, end) => {
     end = end || works.length - 1; //last one
     memory = memory || defMemory;
 
-    let fragment = works.slice(start, end + 1);
-
-    let genBreakhandle = (key, deal) => {
+    let genBreakhandle = (deal) => {
         // get the index, find the break point
         return Promise.resolve(memory.get(key)).then((index = 0) => {
             let breakIndex = index;
 
             let breakHandle = () => {
-                let frgIndex = getFragmentIndex(index, start);
-                let work = fragment[frgIndex];
-                let ret = deal(work, frgIndex, fragment, index);
+                let work = works[index];
+                let ret = deal(work, index, works);
                 // handle the work
                 return Promise.resolve(ret).then((res) => {
                     index++;
@@ -62,10 +59,12 @@ module.exports = (memory, works, start = 0, end) => {
         });
     };
 
-    let handleBreakList = (key, deal, toNextMoment = id) => {
-        return genBreakhandle(key, deal).then(({
+    let handleBreakList = (deal, toNextMoment = id) => {
+        return genBreakhandle(deal).then(({
             breakIndex, breakHandle
         }) => {
+            let fragment = works.slice(start, end + 1);
+
             let frgIndex = getFragmentIndex(breakIndex, start);
 
             if (frgIndex >= fragment.length) return Promise.resolve({
@@ -78,9 +77,9 @@ module.exports = (memory, works, start = 0, end) => {
             }) => {
                 let frgIndex = getFragmentIndex(index, start);
                 if (frgIndex < fragment.length) {
-                    let time = toNextMoment(fragment[frgIndex - 1]);
+                    let time = toNextMoment(fragment[frgIndex]);
                     return Promise.resolve(time).then(() => {
-                        return handleBreakList(key, deal, toNextMoment).then(({
+                        return handleBreakList(deal, toNextMoment).then(({
                             resList, breakIndex
                         }) => {
                             resList.unshift(res);
